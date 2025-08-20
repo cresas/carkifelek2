@@ -68,6 +68,29 @@ function playTickSound() {
             }
         }
         
+        // Kelime sayacını güncelle - kaldırıldı
+        /*
+        function updateWordCounter() {
+            const textarea = document.querySelector('.itemList');
+            if (!textarea) return;
+            
+            const items = textarea.value.split('\n').filter(item => item.trim() !== '');
+            const counter = document.getElementById('wordCount');
+            if (counter) {
+                counter.textContent = items.length;
+                
+                // Eğer hiç kelime kalmadıysa sayacı gizle
+                const wordCounter = document.querySelector('.word-counter');
+                if (items.length === 0) {
+                    wordCounter.style.opacity = '0.5';
+                    counter.textContent = '0';
+                } else {
+                    wordCounter.style.opacity = '1';
+                }
+            }
+        }
+        */
+        
         // Zıt anlamlı kelime çiftlerini textarea'dan oku
         function getAntonymPairs() {
             const textarea = document.querySelector('.itemList');
@@ -98,17 +121,10 @@ function playTickSound() {
                 return item.includes(':') ? item.split(':')[0].trim() : item.trim();
             });
             
-            if (items.length === 0) {
-                // Eğer kelime kalmadıysa canvas'ı temizle
-                if (wheelCanvas) {
-                    const ctx = wheelCanvas.getContext('2d');
-                    ctx.clearRect(0, 0, wheelCanvas.width, wheelCanvas.height);
-                }
-                wheelItems = [];
-                return;
-            }
-            
             wheelItems = items; // Global array'e kaydet
+            
+            // Kelime sayacı kaldırıldı
+            // updateWordCounter();
             
             // Canvas'ı her seferinde yeniden oluştur
             wheel.innerHTML = '';
@@ -130,10 +146,35 @@ function playTickSound() {
             const radius = size / 2 - 5;
             
             const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8', '#F06292', '#FFB74D', '#81C784'];
-            const anglePerItem = (2 * Math.PI) / items.length;
             
             // Arkaplanı tamamen temizle
             ctx.clearRect(0, 0, size, size);
+            
+            // Eğer kelime kalmadıysa sadece boş çark çiz
+            if (items.length === 0) {
+                // Boş çark çiz
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+                ctx.fillStyle = '#f0f0f0';
+                ctx.fill();
+                ctx.strokeStyle = '#ddd';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                
+                // "Oyun Bitti" yazısı (z-index düzeltildi)
+                ctx.fillStyle = '#666';
+                ctx.font = 'bold 24px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('Tebrikler!', centerX, centerY - 20);
+                ctx.fillText('Etkinlik Tamamlandı', centerX, centerY + 20);
+                
+                // Canvas z-index ayarı
+                wheelCanvas.style.zIndex = '1';
+                return;
+            }
+            
+            const anglePerItem = (2 * Math.PI) / items.length;
             
             // Çark dilimlerini çiz - İlk dilimi tam üste hizala
             items.forEach((item, index) => {
@@ -191,46 +232,59 @@ function playTickSound() {
             });
         }
         
-         // Çarkı döndür (düzeltildi)
-  
+         // Çarkı döndür (TAMAMEN DÜZELTİLDİ)
 function spinWheel() {
-    if (isSpinning || wheelItems.length === 0) return;
+    if (isSpinning) return;
+    
+    // Textarea'dan güncel kelime listesini al ve wheelItems'ı hemen güncelle
+    const textarea = document.querySelector('.itemList');
+    const currentItems = textarea.value.split('\n').filter(item => item.trim() !== '').map(item => {
+        return item.includes(':') ? item.split(':')[0].trim() : item.trim();
+    });
+    
+    // wheelItems'ı hemen güncelle
+    wheelItems = currentItems;
+    
+    console.log('spinWheel çağrıldı, güncel kelime sayısı:', currentItems.length);
+    console.log('Mevcut kelimeler:', currentItems);
+    
+    // Kelime kontrolü - eğer kelime yoksa dönmesin
+    if (currentItems.length === 0) {
+        console.log('Kelime kalmadı, oyun bitti!');
+        
+        // Yeniden başlatma modalını göster
+        showRestartModal();
+        return;
+    }
+    
+    // Son kelime için özel işlem yok - normal quiz akışı devam edecek
 
     isSpinning = true;
     const wheel = document.querySelector('.wheel');
     const spinButton = document.querySelector('.spin-button');
-    const needle = document.querySelector('.needle');
 
     // Ses efekti ekle
     playTickSound();
 
     // Buton deaktif et
     spinButton.disabled = true;
-
+    spinButton.style.opacity = '1';
     spinButton.style.cursor = 'not-allowed';
 
-    // Needle opaklığını azalt
-  
-    
-    // Çarkı hemen döndürüp, hızlıca durduruyoruz
+    // İlk dönüşü hemen yapıp geç
     wheel.style.transition = 'transform 0.1s ease-out'; // Hızlı geçiş
- 
-
     const initialSpins = 1; // İlk dönüş çok kısa olacak
     const initialRandomAngle = Math.random() * 360;
     const initialRotation = currentRotation + (initialSpins * 360) + initialRandomAngle;
 
-    // Çarkı döndür
+    // Çarkı hemen döndürüp, hızlıca durduruyoruz
     wheel.style.transform = `rotate(${initialRotation}deg)`;
     currentRotation = initialRotation;
-
-  
 
     // Bir sonraki dönüşe geçmeden önce bir süre bekleyelim (200ms)
     setTimeout(() => {
         // İkinci dönüş için doğru hızda geçiş ayarı
         wheel.style.transition = 'transform 4s cubic-bezier(0.17, 0.67, 0.83, 0.67)'; // Yavaş dönüş
-        needle.style.transition = 'opacity 4s ease-out'; // Needle dönüşü ve opaklık
 
         const spins = 5 + Math.random() * 3; // 5-8 tam tur
         const randomAngle = Math.random() * 360;
@@ -241,17 +295,12 @@ function spinWheel() {
 
         currentRotation = totalRotation;
 
-     
-
         // Dönüş tamamlandığında
         setTimeout(() => {
             isSpinning = false;
             spinButton.disabled = false;
             spinButton.style.opacity = '1';
             spinButton.style.cursor = 'pointer';
-
-            // Needle opaklığını geri al
-            needle.style.opacity = '1';
 
             // Kazananı belirle - needle tam üstte olduğu için doğru hesaplama
             const finalAngle = totalRotation % 360;
@@ -268,15 +317,16 @@ function spinWheel() {
 
             // Modalı göster
             setTimeout(() => {
-                showWinnerModal(winner);
-            }, 1000);
+                showWinnerModal(winner, false); // false = normal kelime
+            }, 400);
 
         }, 4000); // 4 saniye dönüş süresi
     }, 200); // 200ms sonra ikinci dönüşü başlat
 }
         
         // Kazanan modalını göster
-        function showWinnerModal(winner) {
+        function showWinnerModal(winner, isLastWord = false) {
+            
             const modal = document.querySelector('.modal.reward-modal');
             const winnerText = document.querySelector('.winner-text');
             
@@ -284,12 +334,20 @@ function spinWheel() {
             const resultDiv = document.querySelector('.quiz-result-message');
             if (resultDiv) {
                 resultDiv.style.display = 'none';
-                resultDiv.textContent = '';
+                resultDiv.textContent = '';4
                 resultDiv.classList.remove('success', 'error');
             }
             
+            // Her zaman quiz göster (son kelime de dahil)
             winnerText.textContent = `"${winner}" kelimesini seçtiniz!`;
-            setupQuiz(winner);
+            
+            // Quiz kısmını göster
+            const quizOptions = document.querySelector('.quiz-options');
+            if (quizOptions) {
+                quizOptions.style.display = 'flex';
+            }
+            
+            setupQuiz(winner, isLastWord);
             
             modal.style.visibility = "visible";
             modal.style.opacity = "1";
@@ -297,7 +355,7 @@ function spinWheel() {
         
         /// Quiz modalını hazırla
 // Quiz modalında doğru cevap için
-function setupQuiz(selectedWord) {
+function setupQuiz(selectedWord, isLastWord = false) {
     const antonymPairs = getAntonymPairs();
     const correctAnswer = antonymPairs[selectedWord] || "";
 
@@ -307,17 +365,30 @@ function setupQuiz(selectedWord) {
 
     const allWords = Object.keys(antonymPairs);
     let wrongAnswer = "";
-    do {
-        wrongAnswer = allWords[Math.floor(Math.random() * allWords.length)];
-    } while (wrongAnswer === correctAnswer || wrongAnswer === selectedWord);
+    
+    // Yeterli kelime var mı kontrol et (infinite loop'u önlemek için)
+    const availableWrongAnswers = allWords.filter(word => word !== correctAnswer && word !== selectedWord);
+    
+    if (availableWrongAnswers.length > 0) {
+        // Yeterli kelime varsa rastgele seç
+        wrongAnswer = availableWrongAnswers[Math.floor(Math.random() * availableWrongAnswers.length)];
+    } else {
+        // Yeterli kelime yoksa (son kelime durumu) sabit yanlış cevaplar kullan
+        const defaultWrongAnswers = ["büyük", "kısa", "sıcak", "kolay", "güzel", "temiz"];
+        const filteredDefaults = defaultWrongAnswers.filter(word => word !== correctAnswer && word !== selectedWord);
+        wrongAnswer = filteredDefaults.length > 0 ? filteredDefaults[0] : "farklı";
+    }
 
     const options = [correctAnswer, wrongAnswer];
     const shuffled = options.sort(() => Math.random() - 0.5);
 
-    // Modal mesajını güncelle
+    // Modal mesajını güncelle - SON SORU vurgusu kaldırıldı
     const quizTitle = document.querySelector(".quiz-options h3");
     if (quizTitle) {
+        // Her zaman normal stil
         quizTitle.textContent = `"${selectedWord}" kelimesinin zıt anlamlısı hangisidir?`;
+        quizTitle.style.color = '#333';
+        quizTitle.style.fontWeight = 'normal';
     }
 
     const optionButtons = document.querySelectorAll(".option-button");
@@ -326,19 +397,70 @@ function setupQuiz(selectedWord) {
         optionButtons[1].textContent = shuffled[1];
 
         optionButtons.forEach(function(button) {
+            // Butonları aktif et
+            button.disabled = false;
+            button.style.opacity = '1';
+            button.style.cursor = 'pointer';
+            
             button.onclick = function() {
+                // Butona tıklandığında tüm butonları devre dışı bırak
+                optionButtons.forEach(btn => {
+                    btn.disabled = true;
+                    btn.style.opacity = '1';
+                    btn.style.cursor = 'not-allowed';
+                });
+                
                 if (this.textContent === correctAnswer) {
-                    showResultMessage("Doğru! Kelime çarktan çıkarıldı.", "success");
-                    setTimeout(() => {
-                        removeWordFromWheel(selectedWord);
-                        hideModal();
-                    }, 2000);
+                    // Kalan kelime sayısını ÖNCE kontrol et (kelimeyi çıkarmadan önce)
+                    const remainingWords = getRemainingWords();
+                    const wasLastWord = remainingWords.length === 1; // Son kelime miydi?
+                    
+                    // Kelimeyi çıkar
+                    removeWordFromWheel(selectedWord);
+                    
+                    if (wasLastWord) {
+                        // Son kelimeydi - özel tebrik mesajı
+                        showResultMessage("🎉 TEBRİKLER! 🎉\nTüm etkinliği başarıyla tamamladınız!", "success");
+                        // 3 saniye sonra yeniden başlatma modalı göster
+                        setTimeout(() => {
+                            hideModal();
+                            showRestartModal();
+                        }, 3000);
+                    } else {
+                        // Normal mesaj
+                        showResultMessage("Doğru! Kelime çarktan çıkarıldı.", "success");
+                        setTimeout(() => {
+                            hideModal();
+                        }, 2000);
+                    }
+                    
                 } else {
                     showResultMessage("Yanlış! Tekrar deneyin.", "error");
+                    // Yanlış cevapta 2 saniye sonra butonları tekrar aktif et
+                    setTimeout(() => {
+                        optionButtons.forEach(btn => {
+                            btn.disabled = false;
+                            btn.style.opacity = '1';
+                            btn.style.cursor = 'pointer';
+                        });
+                        // Sonuç mesajını gizle
+                        const resultDiv = document.querySelector('.quiz-result-message');
+                        if (resultDiv) {
+                            resultDiv.style.display = 'none';
+                        }
+                    }, 2000);
                 }
             };
         });
     }
+}
+
+// Kalan kelimeleri getir
+function getRemainingWords() {
+    const textarea = document.querySelector('.itemList');
+    if (!textarea) return [];
+    
+    return textarea.value.split('\n').filter(item => item.trim() !== '');
 }
         
         // Sonuç mesajını modal içerisinde göster
@@ -364,6 +486,7 @@ function showResultMessage(message, type) {
         }
     }
 }  // Modalı gizle
+        // Modalı gizle (geliştirildi)
         function hideModal() {
             const modal = document.querySelector('.modal.reward-modal');
             modal.style.visibility = "hidden";
@@ -374,9 +497,39 @@ function showResultMessage(message, type) {
             if (resultDiv) {
                 resultDiv.style.display = 'none';
                 resultDiv.textContent = '';
-                resultDiv.classList.remove('success', 'error'); // CSS class'larını da kaldır
-                resultDiv.style.backgroundColor = ''; // Arka plan rengini sıfırla
+                resultDiv.classList.remove('success', 'error');
+                resultDiv.style.backgroundColor = '';
             }
+            
+            // Quiz kısmını tekrar göster (bir sonraki kelime için)
+            const quizOptions = document.querySelector('.quiz-options');
+            if (quizOptions) {
+                quizOptions.style.display = 'flex';
+            }
+        }
+        
+        // Yeniden başlatma modalını göster
+        function showRestartModal() {
+            const modal = document.querySelector('.modal.restart-modal');
+            modal.style.visibility = "visible";
+            modal.style.opacity = "1";
+        }
+        
+        // Yeniden başlatma modalını gizle
+        function hideRestartModal() {
+            const modal = document.querySelector('.modal.restart-modal');
+            modal.style.visibility = "hidden";
+            modal.style.opacity = "0";
+        }
+        
+        // Oyunu yeniden başlat
+        function restartGame() {
+            const textarea = document.querySelector('.itemList');
+            if (textarea) {
+                textarea.value = 'doğru:yanlış\nacı:tatlı\nhızlı:yavaş';
+                drawWheel(); // Çarkı yeniden çiz
+            }
+            hideRestartModal();
         }
         
         // Kelimeyi çarktan çıkar (düzeltildi)
@@ -390,14 +543,18 @@ function showResultMessage(message, type) {
                 });
                 textarea.value = items.join('\n');
                 
+                // wheelItems'ı da güncelle
+                wheelItems = items.map(item => {
+                    return item.includes(':') ? item.split(':')[0].trim() : item.trim();
+                });
+                
+                console.log('Kelime çıkarıldı:', word);
+                console.log('Kalan kelimeler:', wheelItems);
+                console.log('Kalan kelime sayısı:', wheelItems.length);
+                
                 // Çarkı tamamen yeniden çiz
                 wheelCanvas = null; // Canvas'ı sıfırla
                 drawWheel();
-                
-                // Eğer hiç kelime kalmadıysa bilgi ver
-                if (items.length === 0) {
-                    alert('Tebrikler! Tüm kelimeleri tamamladınız!');
-                }
             }
         }
         
@@ -416,12 +573,21 @@ function showResultMessage(message, type) {
                 textarea.addEventListener('input', function() {
                     wheelCanvas = null; // Canvas'ı sıfırla
                     drawWheel();
+                    // updateWordCounter(); // Kelime sayacı kaldırıldı
                 });
                 
                 // Modal kapatma butonları
                 const closeButtons = document.querySelectorAll('.modal .close');
                 closeButtons.forEach(button => {
-                    button.addEventListener('click', hideModal);
+                    button.addEventListener('click', function() {
+                        // Hangi modalın butonuysa onu kapat
+                        const modal = this.closest('.modal');
+                        if (modal.classList.contains('reward-modal')) {
+                            hideModal();
+                        } else if (modal.classList.contains('restart-modal')) {
+                            hideRestartModal();
+                        }
+                    });
                 });
                 
                 // Tekrar çevir butonu
@@ -503,6 +669,67 @@ function showResultMessage(message, type) {
         .wheel {
             transition: none; /* Başlangıç geçişini kaldır */
         }
+        
+        /* Kelime sayacı stilleri - kaldırıldı
+        .word-counter {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.95);
+            border: 3px solid #409bd0;
+            border-radius: 15px;
+            padding: 10px 15px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            z-index: 10;
+            font-family: 'Gilbert', sans-serif;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            backdrop-filter: blur(5px);
+        }
+        
+        .counter-text {
+            font-size: 16px;
+            color: #333;
+            font-weight: 600;
+        }
+        
+        .counter-number {
+            font-size: 24px;
+            font-weight: bold;
+            color: #409bd0;
+            min-width: 30px;
+            text-align: center;
+        }
+        
+        .counter-label {
+            font-size: 14px;
+            color: #666;
+            font-weight: 500;
+        }
+        */
+        
+        /* Mobil uyumluluk */
+        @media only screen and (max-width: 650px) {
+            .word-counter {
+                top: 10px;
+                right: 10px;
+                padding: 8px 12px;
+            }
+            
+            .counter-text {
+                font-size: 14px;
+            }
+            
+            .counter-number {
+                font-size: 20px;
+                min-width: 25px;
+            }
+            
+            .counter-label {
+                font-size: 12px;
+            }
+        }
 </style>
 
 <!-- wp setting-css-js-görünümümü yükle-->
@@ -512,11 +739,7 @@ window._wpemojiSettings = {"baseUrl":"https:\/\/s.w.org\/images\/core\/emoji\/15
 </script>
 
 <style>
-@font-face{font-family:Gilbert;font-weight:700;src:url(/wp-content/plugins/spinner/build/fonts/gilbert-color.02d3d364.otf)}@keyframes rotate360{0%{transform:rotate(0deg)}to{transform:rotate(1turn)}}.wp-block-spinner-block-spinner{font-family:Gilbert,sans-serif;font-size:42px;margin:0;max-width:100%!important;overflow:hidden}@media only screen and (max-width:650px){.wp-block-spinner-block-spinner{margin:0 5px}}.wheelContainer{align-items:center;aspect-ratio:1/1;box-sizing:border-box;display:flex;justify-content:center;margin:auto;max-width:calc(85vh - 10px);overflow:hidden;padding:0;position:relative;width:100%}@media only screen and (max-width:650px){.wheelContainer{height:auto;min-width:unset}}.spin-button{align-items:center;aspect-ratio:1/1;background-color:#fff;border:3px solid #fff;border-radius:50%;box-shadow:5px 5px 15px rgba(0,0,0,.4);color:#000;cursor:pointer;display:flex;font-size:20px;font-weight:700;height:15%;justify-content:center;left:50%;padding:0;position:absolute;text-transform:uppercase;top:50%;transform:translate(-50%,-50%);width:15%;z-index:3}.spin-button img{display:none;height:55%;width:55%}@media only screen and (max-width:650px){.spin-button{font-size:14px}.spin-button span{display:none}.spin-button img{display:block}}.spin-button:focus{outline:none}
-.needle{background-color:#fff;
-clip-path:polygon(50% 0,0 100%,100% 100%);
-filter:drop-shadow(5px 5px 15px rgba(0,0,0,.4));
-height:8%;left:50%;position:absolute;top:36%;transform:translate(-50%,0);width:6%;z-index:7}.wheel{backface-visibility:hidden;-webkit-backface-visibility:hidden;background-repeat:no-repeat;background-size:cover;border-radius:50%;box-shadow:0 0 10px rgba(0,0,0,.3);clip-path:circle(50% at 50% 50%);-webkit-clip-path:circle(50% at 50% 50%);height:100%;overflow:visible;transform:translateZ(0);width:100%}.wheel.customBg .slice-container .slice{background-color:transparent!important}.wheel.customBg .slice-container .content{color:#fff;-webkit-text-stroke-width:2px;-webkit-text-stroke-color:#000}.wheel .slice-container{border-radius:50%;height:100%;overflow:hidden;position:absolute;width:100%}.wheel .slice-container .border{background-color:#fff;height:3px;position:absolute;right:0;top:50%;transform-origin:left;width:100%;width:50%;z-index:2}.wheel .slice{border-radius:50%;height:100%;position:absolute;width:100%}.wheel .content-box{height:1px;left:50%;position:absolute;top:50%;transform-origin:center left;width:50%;z-index:9}.wheel .content{color:#000;font-size:36px;line-height:1;overflow:hidden;padding-left:4.5rem;padding-right:1.5rem;text-align:end;text-overflow:ellipsis;transform:translateY(-50%);white-space:nowrap}@media only screen and (max-width:650px){.wheel .content{font-size:20px}}.spinner-block{display:flex;flex-wrap:wrap;padding:64px 0}@media only screen and (max-width:650px){.spinner-block{padding:0}}.spinner-block button{letter-spacing:1px}@media only screen and (max-width:1400px){.spinner-block .picker_wrapper{left:50%!important;position:fixed!important;top:50%!important;transform:translate(-50%,-50%)!important}}.spinner-block .picker_wrapper .picker_arrow{display:none!important}.spinner-block .btn-primary{background-color:#409bd0;border:2px solid #1f4d68;border-radius:8px;color:#fff;cursor:pointer;font-family:Gilbert;font-size:15px;padding:2px 10px;transition:all .1s ease-out}.spinner-block .btn-primary:hover{background-color:rgba(0,0,0,.1)!important}.spinner-block .btn-secondary{background-color:transparent;border:none;border-radius:8px;color:#000;cursor:pointer;font-family:Gilbert;font-size:18px;padding:4px 20px;transition:all .1s ease-out}.spinner-block .btn-secondary:hover{background-color:rgba(0,0,0,.1)!important}.spinner-block .confetti{animation:fall 10s linear;border-radius:50%;height:10px;position:fixed;top:-10px;transform:rotate(45deg);width:10px;z-index:5}@keyframes fall{0%{transform:translate(0)}to{transform:translateY(100vh)}}.spinner-block .controls{align-self:stretch;border-radius:16px;display:flex;min-height:400px;position:relative}@media only screen and (max-width:1400px){.spinner-block .controls{min-height:0;width:100%}}.spinner-block .controls button.visibility{background:transparent;border:none;cursor:pointer;height:45px;position:absolute;right:24px;top:8px;width:95px;z-index:2}.spinner-block .controls button.visibility label{bottom:50%;color:#000;font-family:Gilbert;font-size:18px;left:0;position:absolute;transform:translateY(50%);visibility:hidden}.spinner-block .controls button.visibility label:first-of-type{visibility:visible}.spinner-block .controls button.visibility img{background-size:contain;border:3px solid #000;border-radius:50%;box-sizing:border-box;height:100%;padding:5px;position:absolute;right:0;top:0;visibility:hidden;width:auto}.spinner-block .controls button.visibility img:first-of-type,.spinner-block .controls button.visibility.active img,.spinner-block .controls button.visibility.active label{visibility:visible}.spinner-block .controls button.visibility.active img:first-of-type,.spinner-block .controls button.visibility.active label:first-of-type{visibility:hidden}.spinner-block .controls .hideable{display:flex;gap:16px;justify-content:space-around;padding:24px;width:100%}@media only screen and (max-width:1400px){.spinner-block .controls .hideable{flex-wrap:wrap;margin:24px 0;overflow:hidden;padding:0 24px}}@media only screen and (max-width:650px){.spinner-block .controls .hideable{flex-direction:column;flex-wrap:nowrap}}.spinner-block .controls .switches{background-color:rgba(0,0,0,.15);border-radius:16px;box-shadow:5px 5px 10px rgba(0,0,0,.2);box-sizing:border-box;display:flex;flex-direction:column;height:-moz-fit-content;height:fit-content;margin-top:37px;min-width:200px;padding:8px}.spinner-block .controls .switches .ai-open{margin-top:8px}@media only screen and (max-width:1400px){.spinner-block .controls .switches{margin-bottom:16px}}@media only screen and (max-width:650px){.spinner-block .controls .switches{width:100%}}.spinner-block .controls .textarea-tabs .wheel-tabs{display:flex;overflow:hidden}.spinner-block .controls .textarea-tabs .wheel-tabs button{background-color:rgba(0,0,0,.3);border:0;border-radius:16px 16px 0 0;cursor:pointer;font-family:Gilbert;font-size:16px;padding:8px}.spinner-block .controls .textarea-tabs .wheel-tabs button.active{background-color:rgba(0,0,0,.15);cursor:default}.spinner-block .controls .textarea-tabs .tabcontent{background-color:rgba(0,0,0,.15);border-radius:0 16px 16px 16px;box-shadow:5px 8px 10px rgba(0,0,0,.2);font-size:24px;width:250px}.spinner-block .controls .textarea-tabs .tabcontent .tab{display:none;padding:8px}.spinner-block .controls .textarea-tabs .tabcontent .tab.active{display:block}@media only screen and (max-width:650px){.spinner-block .controls .textarea-tabs .tabcontent{width:100%}}.spinner-block .controls .textarea-tabs .tabcontent .ai-open{width:100%}.spinner-block .controls .textarea-tabs .tabcontent .buttonbox{display:flex;justify-content:end;width:100%}.spinner-block .controls .textarea-tabs .tabcontent .buttonbox button{background-color:#fff;border:0;border-radius:8px;color:#000;cursor:pointer;font-family:Gilbert,sans-serif;font-size:20px;margin-left:16px;padding:2px 16px;transition:all .1s ease-out}.spinner-block .controls .textarea-tabs .tabcontent .buttonbox button:hover{background-color:rgba(0,0,0,.15)}.spinner-block .controls .textarea-tabs .tabcontent textarea{background-color:transparent;border:0;box-sizing:border-box;color:inherit;font-family:Gilbert,sans-serif;font-size:24px;resize:none;width:100%}.spinner-block .controls .textarea-tabs .tabcontent textarea:focus{outline:none}.spinner-block .controls .textarea-tabs .tabcontent .results{padding:8px}.spinner-block .controls .textarea-tabs .tabcontent .results div{font-size:24px;margin:0;min-height:2ch}.spinner-block .controls .textarea-tabs .tabcontent .results div .item{display:flex;justify-content:space-between}.spinner-block .controls .textarea-tabs .tabcontent .results div .num{margin-right:8px}.spinner-block .controls .sliders{display:flex;margin-bottom:8px}.spinner-block .controls .sliders .slider-container{align-items:center;box-sizing:border-box;display:flex;flex-direction:column;height:auto;padding:0 16px;position:relative;width:100%}.spinner-block .controls .sliders .slider-container p{font-size:16px;margin:16px 0}.spinner-block .controls .sliders .slider-container span{display:block;font-size:20px;text-align:center;width:100%}.spinner-block .controls .sliders .slider-border{height:200px;margin-bottom:8px}.spinner-block .controls .sliders .slider{-webkit-appearance:none;-moz-appearance:none;appearance:none;background:#fff;border-radius:16px;height:20px;outline:none;position:absolute;touch-action:none;transform:rotate(-90deg) translate(-100%,-50%);transform-origin:left top;width:200px}.spinner-block .controls .sliders .slider::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;background:#409bd0;border-radius:16px;cursor:pointer;height:20px;width:25px}.spinner-block .switch input{opacity:0;position:absolute}.spinner-block .switch{background:#000;border-radius:1em;display:inline-block;font-size:20px;height:1em;margin-right:16px;transition:all .3s;width:2em}.spinner-block .switch:has(input:checked){background:#409bd0}.spinner-block .switch div{background:#fff;border-radius:1em;box-shadow:0 .1em .3em rgba(0,0,0,.3);height:1em;transition:all .3s;width:1em}.spinner-block .switch input:checked+div{transform:translate3d(100%,0,0)}.spinner-block .option{align-items:center;cursor:pointer;display:flex}.spinner-block .option:not(:last-child){margin-bottom:16px}.spinner-block .option:has(input:disabled){cursor:default;opacity:.5}.spinner-block .option span{font-size:16px}.spinner-block .modalBack{background-color:transparent;display:none;height:100%;left:0;position:fixed;top:0;width:100%;z-index:8}.spinner-block .modal{background-color:#fff;border-radius:6px;box-shadow:0 5px 10px rgba(0,0,0,.2);box-sizing:border-box;display:flex;flex-direction:column;left:50%;max-width:calc(100% - 10px);overflow:hidden;position:fixed;top:50%;transform:translate(-50%,-50%);visibility:hidden;width:500px;z-index:9}@media only screen and (max-width:650px){.spinner-block .modal{width:calc(100% - 10px)}}.spinner-block .modal .ribbon{background-color:#409bd0;box-sizing:border-box;display:flex;height:-moz-fit-content;height:fit-content;padding:16px;width:100%}.spinner-block .modal .winner-text{font-size:36px;margin:0}.spinner-block .modal .buttonbox{display:flex;gap:16px;justify-content:flex-end;margin-top:auto}.spinner-block .modal .modal-body{display:flex;flex-direction:column;height:100%;padding:16px}.spinner-block .modal .buttonbox{margin-top:16px}.spinner-block .modal .ribbon button.close{background:#ececec;border:0;border-radius:20px;cursor:pointer;height:40px;left:auto;margin-left:auto;position:relative;transition:.2s ease-in-out;width:40px}.spinner-block .modal .ribbon button.close .line{background:#000;border-radius:2px;height:4px;left:50%;position:absolute;top:50%;transform:translate(-50%,-50%) rotate(45deg);transform-origin:center;width:20px}.spinner-block .modal .ribbon button.close .line:nth-child(2){transform:translate(-50%,-50%) rotate(-45deg)}.spinner-block .modal .ribbon button.close:hover{background-color:#c8c8c8}.spinner-block .modal.reward-modal{text-align:center}.spinner-block .modal.reward-modal .textbox{margin:16px auto}.spinner-block .modal.reward-modal .reward{margin-bottom:24px;text-decoration:underline}.spinner-block .modal.config-modal{overflow:visible;padding:16px;width:650px}.spinner-block .modal.config-modal .modal-body{background-color:#eee;border-radius:16px}.spinner-block .modal.config-modal .configs{font-size:20px;overflow:visible}.spinner-block .modal.config-modal .configs .winner-text-input{display:flex;flex-direction:column;margin-bottom:32px;width:100%}.spinner-block .modal.config-modal .configs .winner-text-input input{background-color:#fff;border:0;border-radius:16px;flex-grow:1;font-family:Gilbert,sans-serif;font-size:16px;margin-left:8px;padding:4px 8px}.spinner-block .modal.config-modal .configs .background-input{align-items:center;display:flex;flex-wrap:wrap}.spinner-block .modal.config-modal .configs .background-input p{width:100%}.spinner-block .modal.config-modal .configs .background-input .input{margin-right:16px;position:relative}.spinner-block .modal.config-modal .configs .background-input .input label{background-color:#409bd0;border:2px solid #1f4d68;border-radius:16px;color:#fff;letter-spacing:2px;padding:4px 8px;transition:all .1s ease-out}.spinner-block .modal.config-modal .configs .background-input .input:hover label{background-color:rgba(0,0,0,.1)}.spinner-block .modal.config-modal .configs .background-input .input input{cursor:pointer;height:100%;left:0;opacity:0;position:absolute;top:0;width:100%}.spinner-block .modal.config-modal .configs .background-input .preview{background-color:#fff;background-size:contain;border:2px solid #1f4d68;border-radius:50%;height:100px;margin-right:16px;overflow:hidden;width:100px}.spinner-block .modal.config-modal .configs .colors{display:flex;flex-wrap:wrap;justify-content:space-between}.spinner-block .modal.config-modal .configs .colors p{width:100%}.spinner-block .modal.config-modal .configs .colors .color{width:15%}.spinner-block .modal.config-modal .configs .colors .color button{border:0;border-radius:4px;cursor:pointer;height:40px;width:100%}.spinner-block .modal.ai-modal{padding:16px}.spinner-block .modal.ai-modal .doneMask,.spinner-block .modal.ai-modal .loadingMask{align-items:center;background-color:#eee;display:none;height:100%;justify-content:center;left:0;position:absolute;top:0;width:100%;z-index:10}.spinner-block .modal.ai-modal .doneMask.active,.spinner-block .modal.ai-modal .loadingMask.active{display:flex}.spinner-block .modal.ai-modal .modal-body{background-color:#eee;border-radius:16px;font-size:20px}.spinner-block .modal.ai-modal .modal-body input{background-color:#fff;border:0;border-radius:16px;flex-grow:1;font-family:Gilbert,sans-serif;font-size:16px;margin-left:8px;padding:4px 8px}.spinner-block .modal.ai-modal button:disabled{cursor:default;opacity:.5}
+@font-face{font-family:Gilbert;font-weight:700;src:url(/wp-content/plugins/spinner/build/fonts/gilbert-color.02d3d364.otf)}@keyframes rotate360{0%{transform:rotate(0deg)}to{transform:rotate(1turn)}}.wp-block-spinner-block-spinner{font-family:Gilbert,sans-serif;font-size:42px;margin:0;max-width:100%!important;overflow:hidden}@media only screen and (max-width:650px){.wp-block-spinner-block-spinner{margin:0 5px}}.wheelContainer{align-items:center;aspect-ratio:1/1;box-sizing:border-box;display:flex;justify-content:center;margin:auto;max-width:calc(85vh - 10px);overflow:hidden;padding:0;position:relative;width:100%}@media only screen and (max-width:650px){.wheelContainer{height:auto;min-width:unset}}.spin-button{align-items:center;aspect-ratio:1/1;background-color:#fff;border:3px solid #fff;border-radius:50%;box-shadow:5px 5px 15px rgba(0,0,0,.4);color:#000;cursor:pointer;display:flex;font-size:20px;font-weight:700;height:15%;justify-content:center;left:50%;padding:0;position:absolute;text-transform:uppercase;top:50%;transform:translate(-50%,-50%);width:15%;z-index:3}.spin-button img{display:none;height:55%;width:55%}@media only screen and (max-width:650px){.spin-button{font-size:14px}.spin-button span{display:none}.spin-button img{display:block}}.spin-button:focus{outline:none}.needle{background-color:#fff;clip-path:polygon(50% 0,0 100%,100% 100%);filter:drop-shadow(5px 5px 15px rgba(0,0,0,.4));height:8%;left:50%;position:absolute;top:37%;transform:translate(-50%,0);width:6%;z-index:7}.wheel{backface-visibility:hidden;-webkit-backface-visibility:hidden;background-repeat:no-repeat;background-size:cover;border-radius:50%;box-shadow:0 0 10px rgba(0,0,0,.3);clip-path:circle(50% at 50% 50%);-webkit-clip-path:circle(50% at 50% 50%);height:100%;overflow:visible;transform:translateZ(0);width:100%}.wheel.customBg .slice-container .slice{background-color:transparent!important}.wheel.customBg .slice-container .content{color:#fff;-webkit-text-stroke-width:2px;-webkit-text-stroke-color:#000}.wheel .slice-container{border-radius:50%;height:100%;overflow:hidden;position:absolute;width:100%}.wheel .slice-container .border{background-color:#fff;height:3px;position:absolute;right:0;top:50%;transform-origin:left;width:100%;width:50%;z-index:2}.wheel .slice{border-radius:50%;height:100%;position:absolute;width:100%}.wheel .content-box{height:1px;left:50%;position:absolute;top:50%;transform-origin:center left;width:50%;z-index:9}.wheel .content{color:#000;font-size:36px;line-height:1;overflow:hidden;padding-left:4.5rem;padding-right:1.5rem;text-align:end;text-overflow:ellipsis;transform:translateY(-50%);white-space:nowrap}@media only screen and (max-width:650px){.wheel .content{font-size:20px}}.spinner-block{display:flex;flex-wrap:wrap;padding:64px 0}@media only screen and (max-width:650px){.spinner-block{padding:0}}.spinner-block button{letter-spacing:1px}@media only screen and (max-width:1400px){.spinner-block .picker_wrapper{left:50%!important;position:fixed!important;top:50%!important;transform:translate(-50%,-50%)!important}}.spinner-block .picker_wrapper .picker_arrow{display:none!important}.spinner-block .btn-primary{background-color:#409bd0;border:2px solid #1f4d68;border-radius:8px;color:#fff;cursor:pointer;font-family:Gilbert;font-size:15px;padding:2px 10px;transition:all .1s ease-out}.spinner-block .btn-primary:hover{background-color:rgba(0,0,0,.1)!important}.spinner-block .btn-secondary{background-color:transparent;border:none;border-radius:8px;color:#000;cursor:pointer;font-family:Gilbert;font-size:18px;padding:4px 20px;transition:all .1s ease-out}.spinner-block .btn-secondary:hover{background-color:rgba(0,0,0,.1)!important}.spinner-block .confetti{animation:fall 10s linear;border-radius:50%;height:10px;position:fixed;top:-10px;transform:rotate(45deg);width:10px;z-index:5}@keyframes fall{0%{transform:translate(0)}to{transform:translateY(100vh)}}.spinner-block .controls{align-self:stretch;border-radius:16px;display:flex;min-height:400px;position:relative}@media only screen and (max-width:1400px){.spinner-block .controls{min-height:0;width:100%}}.spinner-block .controls button.visibility{background:transparent;border:none;cursor:pointer;height:45px;position:absolute;right:24px;top:8px;width:95px;z-index:2}.spinner-block .controls button.visibility label{bottom:50%;color:#000;font-family:Gilbert;font-size:18px;left:0;position:absolute;transform:translateY(50%);visibility:hidden}.spinner-block .controls button.visibility label:first-of-type{visibility:visible}.spinner-block .controls button.visibility img{background-size:contain;border:3px solid #000;border-radius:50%;box-sizing:border-box;height:100%;padding:5px;position:absolute;right:0;top:0;visibility:hidden;width:auto}.spinner-block .controls button.visibility img:first-of-type,.spinner-block .controls button.visibility.active img,.spinner-block .controls button.visibility.active label{visibility:visible}.spinner-block .controls button.visibility.active img:first-of-type,.spinner-block .controls button.visibility.active label:first-of-type{visibility:hidden}.spinner-block .controls .hideable{display:flex;gap:16px;justify-content:space-around;padding:24px;width:100%}@media only screen and (max-width:1400px){.spinner-block .controls .hideable{flex-wrap:wrap;margin:24px 0;overflow:hidden;padding:0 24px}}@media only screen and (max-width:650px){.spinner-block .controls .hideable{flex-direction:column;flex-wrap:nowrap}}.spinner-block .controls .switches{background-color:rgba(0,0,0,.15);border-radius:16px;box-shadow:5px 5px 10px rgba(0,0,0,.2);box-sizing:border-box;display:flex;flex-direction:column;height:-moz-fit-content;height:fit-content;margin-top:37px;min-width:200px;padding:8px}.spinner-block .controls .switches .ai-open{margin-top:8px}@media only screen and (max-width:1400px){.spinner-block .controls .switches{margin-bottom:16px}}@media only screen and (max-width:650px){.spinner-block .controls .switches{width:100%}}.spinner-block .controls .textarea-tabs .wheel-tabs{display:flex;overflow:hidden}.spinner-block .controls .textarea-tabs .wheel-tabs button{background-color:rgba(0,0,0,.3);border:0;border-radius:16px 16px 0 0;cursor:pointer;font-family:Gilbert;font-size:16px;padding:8px}.spinner-block .controls .textarea-tabs .wheel-tabs button.active{background-color:rgba(0,0,0,.15);cursor:default}.spinner-block .controls .textarea-tabs .tabcontent{background-color:rgba(0,0,0,.15);border-radius:0 16px 16px 16px;box-shadow:5px 8px 10px rgba(0,0,0,.2);font-size:24px;width:250px}.spinner-block .controls .textarea-tabs .tabcontent .tab{display:none;padding:8px}.spinner-block .controls .textarea-tabs .tabcontent .tab.active{display:block}@media only screen and (max-width:650px){.spinner-block .controls .textarea-tabs .tabcontent{width:100%}}.spinner-block .controls .textarea-tabs .tabcontent .ai-open{width:100%}.spinner-block .controls .textarea-tabs .tabcontent .buttonbox{display:flex;justify-content:end;width:100%}.spinner-block .controls .textarea-tabs .tabcontent .buttonbox button{background-color:#fff;border:0;border-radius:8px;color:#000;cursor:pointer;font-family:Gilbert,sans-serif;font-size:20px;margin-left:16px;padding:2px 16px;transition:all .1s ease-out}.spinner-block .controls .textarea-tabs .tabcontent .buttonbox button:hover{background-color:rgba(0,0,0,.15)}.spinner-block .controls .textarea-tabs .tabcontent textarea{background-color:transparent;border:0;box-sizing:border-box;color:inherit;font-family:Gilbert,sans-serif;font-size:24px;resize:none;width:100%}.spinner-block .controls .textarea-tabs .tabcontent textarea:focus{outline:none}.spinner-block .controls .textarea-tabs .tabcontent .results{padding:8px}.spinner-block .controls .textarea-tabs .tabcontent .results div{font-size:24px;margin:0;min-height:2ch}.spinner-block .controls .textarea-tabs .tabcontent .results div .item{display:flex;justify-content:space-between}.spinner-block .controls .textarea-tabs .tabcontent .results div .num{margin-right:8px}.spinner-block .controls .sliders{display:flex;margin-bottom:8px}.spinner-block .controls .sliders .slider-container{align-items:center;box-sizing:border-box;display:flex;flex-direction:column;height:auto;padding:0 16px;position:relative;width:100%}.spinner-block .controls .sliders .slider-container p{font-size:16px;margin:16px 0}.spinner-block .controls .sliders .slider-container span{display:block;font-size:20px;text-align:center;width:100%}.spinner-block .controls .sliders .slider-border{height:200px;margin-bottom:8px}.spinner-block .controls .sliders .slider{-webkit-appearance:none;-moz-appearance:none;appearance:none;background:#fff;border-radius:16px;height:20px;outline:none;position:absolute;touch-action:none;transform:rotate(-90deg) translate(-100%,-50%);transform-origin:left top;width:200px}.spinner-block .controls .sliders .slider::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;background:#409bd0;border-radius:16px;cursor:pointer;height:20px;width:25px}.spinner-block .switch input{opacity:0;position:absolute}.spinner-block .switch{background:#000;border-radius:1em;display:inline-block;font-size:20px;height:1em;margin-right:16px;transition:all .3s;width:2em}.spinner-block .switch:has(input:checked){background:#409bd0}.spinner-block .switch div{background:#fff;border-radius:1em;box-shadow:0 .1em .3em rgba(0,0,0,.3);height:1em;transition:all .3s;width:1em}.spinner-block .switch input:checked+div{transform:translate3d(100%,0,0)}.spinner-block .option{align-items:center;cursor:pointer;display:flex}.spinner-block .option:not(:last-child){margin-bottom:16px}.spinner-block .option:has(input:disabled){cursor:default;opacity:.5}.spinner-block .option span{font-size:16px}.spinner-block .modalBack{background-color:transparent;display:none;height:100%;left:0;position:fixed;top:0;width:100%;z-index:8}.spinner-block .modal{background-color:#fff;border-radius:6px;box-shadow:0 5px 10px rgba(0,0,0,.2);box-sizing:border-box;display:flex;flex-direction:column;left:50%;max-width:calc(100% - 10px);overflow:hidden;position:fixed;top:50%;transform:translate(-50%,-50%);visibility:hidden;width:500px;z-index:9}@media only screen and (max-width:650px){.spinner-block .modal{width:calc(100% - 10px)}}.spinner-block .modal .ribbon{background-color:#409bd0;box-sizing:border-box;display:flex;height:-moz-fit-content;height:fit-content;padding:16px;width:100%}.spinner-block .modal .winner-text{font-size:36px;margin:0}.spinner-block .modal .buttonbox{display:flex;gap:16px;justify-content:flex-end;margin-top:auto}.spinner-block .modal .modal-body{display:flex;flex-direction:column;height:100%;padding:16px}.spinner-block .modal .buttonbox{margin-top:16px}.spinner-block .modal .ribbon button.close{background:#ececec;border:0;border-radius:20px;cursor:pointer;height:40px;left:auto;margin-left:auto;position:relative;transition:.2s ease-in-out;width:40px}.spinner-block .modal .ribbon button.close .line{background:#000;border-radius:2px;height:4px;left:50%;position:absolute;top:50%;transform:translate(-50%,-50%) rotate(45deg);transform-origin:center;width:20px}.spinner-block .modal .ribbon button.close .line:nth-child(2){transform:translate(-50%,-50%) rotate(-45deg)}.spinner-block .modal .ribbon button.close:hover{background-color:#c8c8c8}.spinner-block .modal.reward-modal{text-align:center}.spinner-block .modal.reward-modal .textbox{margin:16px auto}.spinner-block .modal.reward-modal .reward{margin-bottom:24px;text-decoration:underline}.spinner-block .modal.config-modal{overflow:visible;padding:16px;width:650px}.spinner-block .modal.config-modal .modal-body{background-color:#eee;border-radius:16px}.spinner-block .modal.config-modal .configs{font-size:20px;overflow:visible}.spinner-block .modal.config-modal .configs .winner-text-input{display:flex;flex-direction:column;margin-bottom:32px;width:100%}.spinner-block .modal.config-modal .configs .winner-text-input input{background-color:#fff;border:0;border-radius:16px;flex-grow:1;font-family:Gilbert,sans-serif;font-size:16px;margin-left:8px;padding:4px 8px}.spinner-block .modal.config-modal .configs .background-input{align-items:center;display:flex;flex-wrap:wrap}.spinner-block .modal.config-modal .configs .background-input p{width:100%}.spinner-block .modal.config-modal .configs .background-input .input{margin-right:16px;position:relative}.spinner-block .modal.config-modal .configs .background-input .input label{background-color:#409bd0;border:2px solid #1f4d68;border-radius:16px;color:#fff;letter-spacing:2px;padding:4px 8px;transition:all .1s ease-out}.spinner-block .modal.config-modal .configs .background-input .input:hover label{background-color:rgba(0,0,0,.1)}.spinner-block .modal.config-modal .configs .background-input .input input{cursor:pointer;height:100%;left:0;opacity:0;position:absolute;top:0;width:100%}.spinner-block .modal.config-modal .configs .background-input .preview{background-color:#fff;background-size:contain;border:2px solid #1f4d68;border-radius:50%;height:100px;margin-right:16px;overflow:hidden;width:100px}.spinner-block .modal.config-modal .configs .colors{display:flex;flex-wrap:wrap;justify-content:space-between}.spinner-block .modal.config-modal .configs .colors p{width:100%}.spinner-block .modal.config-modal .configs .colors .color{width:15%}.spinner-block .modal.config-modal .configs .colors .color button{border:0;border-radius:4px;cursor:pointer;height:40px;width:100%}.spinner-block .modal.ai-modal{padding:16px}.spinner-block .modal.ai-modal .doneMask,.spinner-block .modal.ai-modal .loadingMask{align-items:center;background-color:#eee;display:none;height:100%;justify-content:center;left:0;position:absolute;top:0;width:100%;z-index:10}.spinner-block .modal.ai-modal .doneMask.active,.spinner-block .modal.ai-modal .loadingMask.active{display:flex}.spinner-block .modal.ai-modal .modal-body{background-color:#eee;border-radius:16px;font-size:20px}.spinner-block .modal.ai-modal .modal-body input{background-color:#fff;border:0;border-radius:16px;flex-grow:1;font-family:Gilbert,sans-serif;font-size:16px;margin-left:8px;padding:4px 8px}.spinner-block .modal.ai-modal button:disabled{cursor:default;opacity:.5}
 </style>
 
 </head>
@@ -526,7 +749,7 @@ height:8%;left:50%;position:absolute;top:36%;transform:translate(-50%,0);width:6
 	<div class="spinner-block">
 		<div class="confetti-container"></div>
 		<audio class="spinnerSound">
-						<source src="" type="audio/mpeg">
+					<source src="" type="audio/mpeg">
 
 			Tarayıcınız ses öğesini desteklemiyor.
 		</audio>
@@ -535,7 +758,9 @@ height:8%;left:50%;position:absolute;top:36%;transform:translate(-50%,0);width:6
 			Tarayıcınız ses öğesini desteklemiyor.
 		</audio>
 		<div class="wheelContainer">
-			<div class="wheel" >
+        <!-- Kelime sayacı kaldırıldı -->
+			
+			<div class="wheel">
 			</div>
 			<button class="spin-button">
 				<span>çarkı çevİr</span>
@@ -712,6 +937,28 @@ hızlı:yavaş</textarea>
 			</div>
 			<div class="buttonbox">
 				<button class="btn-secondary close">Kapat</button>
+			</div>
+		</div>
+		<!-- Yeniden Başlatma Modalı -->
+		<div class="modal restart-modal" style="visibility: hidden; opacity: 0;">
+			<span class="ribbon" style="background-color: #e74c3c;">
+				<button class="close" onclick="hideRestartModal()">
+					<div class="arrow">
+						<div class="line"></div>
+						<div class="line"></div>
+					</div>
+				</button>
+			</span>
+			<div class="modal-body" style="text-align: center; padding: 30px;">
+				<div class="textbox">
+					<h2 style="color: #333; margin-bottom: 20px;">🎉 Tebrikler! 🎉</h2>
+					<p style="font-size: 18px; color: #666; margin-bottom: 30px;">Tüm etkinliği başarıyla tamamladınız!</p>
+					<p style="font-size: 16px; color: #333; margin-bottom: 30px;">Yeniden başlatmak ister misiniz?</p>
+				</div>
+				<div class="buttonbox" style="display: flex; gap: 15px; justify-content: center;">
+					<button class="btn-primary" onclick="restartGame()" style="padding: 12px 25px; font-size: 16px;">Evet, Yeniden Başlat</button>
+					<button class="btn-secondary" onclick="hideRestartModal()" style="padding: 12px 25px; font-size: 16px;">Hayır</button>
+				</div>
 			</div>
 		</div>
 				
