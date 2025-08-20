@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+		<style>img:is([sizes="auto" i], [sizes^="auto," i]) { contain-intrinsic-size: 3000px 1500px }</style>
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- author : cresas - emre çiftçioğlu-->
+<title>Çarkıfelek</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Çarkıfelek -Kelime</title>
+    <meta name="description" content="Çarkıfelek - Kelime oyunu" />
+    <meta name="robots" content="index, follow, max-snippet:-1, max-video-preview:-1, max-image-preview:large" />
+    <meta property="og:locale" content="tr_TR" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Çarkıfelek - Kelime oyunu"" />
+    <meta property="og:description" content="Çarkıfelek - Kelime oyunu"" />
+    <meta property="og:url" content="" />
+    <meta property="og:site_name" content="Çarkıfelek - Cresas" />
+    <meta name="social:title" content="Çarkıfelek - Kelime oyunu" />
+    <meta name="social:description" content="Çarkıfelek - Kelime Oyunu" />
+    <meta name="author" content="Yazar : Emre Çiftçioğlu" />
+    <meta name="social:data1" content="Cresasemre - Cresas ve Emre Çiftçioğlu"/>
+
+<script>
+        document.addEventListener("DOMContentLoaded", function() {
+            let visibilityButton = document.querySelector(".visibility");
+            let eyeShow = visibilityButton.querySelector("img[src*='eye-show.svg']");
+            let eyeOff = visibilityButton.querySelector("img[src*='eye-off.svg']");
+
+            // Başlangıçta "Gizle" ikonunu sakla, "Ayar" ikonunu göster
+            eyeShow.style.display = "none";  
+            eyeOff.style.display = "inline";
+
+            // Butona tıklanınca ikonların yer değiştirmesi
+            visibilityButton.addEventListener("click", function() {
+                if (eyeShow.style.display === "none") {
+                    eyeShow.style.display = "inline";
+                    eyeOff.style.display = "none";
+                } else {
+                    eyeShow.style.display = "none";
+                    eyeOff.style.display = "inline";
+                }
+            });
+        });
+        
+        let currentRotation = 0;
+        let isSpinning = false;
+        let wheelCanvas = null;
+        let wheelItems = [];
+        
+        // Ses fonksiyonları
+function playTickSound() {
+    const tickSound = document.querySelector('.spinnerSound');
+    if (tickSound) {
+        tickSound.currentTime = 0;
+        tickSound.volume = 0.3;
+        tickSound.play().catch(e => console.log('Tick ses çalınamıyor:', e));
+    }
+}
+        
+        function playApplauseSound() {
+            const applauseSound = document.querySelector('.applauseSound');
+            if (applauseSound) {
+                applauseSound.currentTime = 0;
+                applauseSound.volume = 0.5;
+                applauseSound.play().catch(e => console.log('Alkış sesi çalınamıyor:', e));
+            }
+        }
+        
+        // Zıt anlamlı kelime çiftlerini textarea'dan oku
+        function getAntonymPairs() {
+            const textarea = document.querySelector('.itemList');
+            const lines = textarea.value.split('\n').filter(line => line.trim() !== '');
+            const pairs = {};
+            
+            lines.forEach(line => {
+                if (line.includes(':')) {
+                    const [word, antonym] = line.split(':').map(s => s.trim());
+                    if (word && antonym) {
+                        pairs[word] = antonym;
+                        pairs[antonym] = word;
+                    }
+                }
+            });
+            
+            return pairs;
+        }
+        
+       // Çarkı çiz (düzeltildi)
+        function drawWheel() {
+            const wheel = document.querySelector('.wheel');
+            const textarea = document.querySelector('.itemList');
+            
+            if (!textarea) return;
+            
+            const items = textarea.value.split('\n').filter(item => item.trim() !== '').map(item => {
+                return item.includes(':') ? item.split(':')[0].trim() : item.trim();
+            });
+            
+            if (items.length === 0) {
+                // Eğer kelime kalmadıysa canvas'ı temizle
+                if (wheelCanvas) {
+                    const ctx = wheelCanvas.getContext('2d');
+                    ctx.clearRect(0, 0, wheelCanvas.width, wheelCanvas.height);
+                }
+                wheelItems = [];
+                return;
+            }
+            
+            wheelItems = items; // Global array'e kaydet
+            
+            // Canvas'ı her seferinde yeniden oluştur
+            wheel.innerHTML = '';
+            wheelCanvas = document.createElement('canvas');
+            wheel.appendChild(wheelCanvas);
+            
+            const wheelRect = wheel.getBoundingClientRect();
+            const size = Math.min(wheelRect.width, wheelRect.height) || 400;
+            
+            wheelCanvas.width = size;
+            wheelCanvas.height = size;
+            wheelCanvas.style.width = '100%';
+            wheelCanvas.style.height = '100%';
+            wheelCanvas.style.display = 'block';
+            
+            const ctx = wheelCanvas.getContext('2d');
+            const centerX = size / 2;
+            const centerY = size / 2;
+            const radius = size / 2 - 5;
+            
+            const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8', '#F06292', '#FFB74D', '#81C784'];
+            const anglePerItem = (2 * Math.PI) / items.length;
+            
+            // Arkaplanı tamamen temizle
+            ctx.clearRect(0, 0, size, size);
+            
+            // Çark dilimlerini çiz - İlk dilimi tam üste hizala
+            items.forEach((item, index) => {
+                // Needle tam üstte (0°) olduğu için, ilk dilimi -90° den başlat
+                const startAngle = -Math.PI / 2 + index * anglePerItem; 
+                const endAngle = startAngle + anglePerItem;
+                
+                // Dilimi çiz
+                ctx.beginPath();
+                ctx.moveTo(centerX, centerY);
+                ctx.arc(centerX, centerY, radius, startAngle, endAngle);
+                ctx.closePath();
+                ctx.fillStyle = colors[index % colors.length];
+                ctx.fill();
+                
+                // Kenar çizgisi
+                ctx.beginPath();
+                ctx.moveTo(centerX, centerY);
+                ctx.lineTo(
+                    centerX + radius * Math.cos(startAngle),
+                    centerY + radius * Math.sin(startAngle)
+                );
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                
+                // Metin
+                const textAngle = startAngle + anglePerItem / 2;
+                const textRadius = radius * 0.65;
+                const textX = centerX + textRadius * Math.cos(textAngle);
+                const textY = centerY + textRadius * Math.sin(textAngle);
+                
+                ctx.save();
+                ctx.translate(textX, textY);
+                
+                let rotationAngle = textAngle + Math.PI / 2;
+                if (textAngle > Math.PI / 2 && textAngle < 3 * Math.PI / 2) {
+                    rotationAngle += Math.PI;
+                }
+                ctx.rotate(rotationAngle);
+                
+                ctx.fillStyle = '#000';
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 3;
+                
+                let fontSize = Math.max(12, Math.min(20, size / 20));
+                ctx.font = `bold ${fontSize}px Arial`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                
+                ctx.strokeText(item, 0, 0);
+                ctx.fillText(item, 0, 0);
+                
+                ctx.restore();
+            });
+        }
+        
+         // Çarkı döndür (düzeltildi)
+  
+function spinWheel() {
+    if (isSpinning || wheelItems.length === 0) return;
+
+    isSpinning = true;
+    const wheel = document.querySelector('.wheel');
+    const spinButton = document.querySelector('.spin-button');
+    const needle = document.querySelector('.needle');
+
+    // Ses efekti ekle
+    playTickSound();
+
+    // Buton deaktif et
+    spinButton.disabled = true;
+
+    spinButton.style.cursor = 'not-allowed';
+
+    // Needle opaklığını azalt
+  
+    
+    // Çarkı hemen döndürüp, hızlıca durduruyoruz
+    wheel.style.transition = 'transform 0.1s ease-out'; // Hızlı geçiş
+ 
+
+    const initialSpins = 1; // İlk dönüş çok kısa olacak
+    const initialRandomAngle = Math.random() * 360;
+    const initialRotation = currentRotation + (initialSpins * 360) + initialRandomAngle;
+
+    // Çarkı döndür
+    wheel.style.transform = `rotate(${initialRotation}deg)`;
+    currentRotation = initialRotation;
+
+  
+
+    // Bir sonraki dönüşe geçmeden önce bir süre bekleyelim (200ms)
+    setTimeout(() => {
+        // İkinci dönüş için doğru hızda geçiş ayarı
+        wheel.style.transition = 'transform 4s cubic-bezier(0.17, 0.67, 0.83, 0.67)'; // Yavaş dönüş
+        needle.style.transition = 'opacity 4s ease-out'; // Needle dönüşü ve opaklık
+
+        const spins = 5 + Math.random() * 3; // 5-8 tam tur
+        const randomAngle = Math.random() * 360;
+        const totalRotation = currentRotation + (spins * 360) + randomAngle;
+
+        // Çarkı döndür
+        wheel.style.transform = `rotate(${totalRotation}deg)`;
+
+        currentRotation = totalRotation;
+
+     
+
+        // Dönüş tamamlandığında
+        setTimeout(() => {
+            isSpinning = false;
+            spinButton.disabled = false;
+            spinButton.style.opacity = '1';
+            spinButton.style.cursor = 'pointer';
+
+            // Needle opaklığını geri al
+            needle.style.opacity = '1';
+
+            // Kazananı belirle - needle tam üstte olduğu için doğru hesaplama
+            const finalAngle = totalRotation % 360;
+            const segmentAngle = 360 / wheelItems.length;
+
+            const normalizedAngle = (360 - finalAngle) % 360;
+            const winnerIndex = Math.floor(normalizedAngle / segmentAngle) % wheelItems.length;
+            const winner = wheelItems[winnerIndex];
+
+            console.log('Final angle:', finalAngle, 'Normalized angle:', normalizedAngle, 'Segment angle:', segmentAngle, 'Winner index:', winnerIndex, 'Winner:', winner);
+
+            // Alkış sesi çal
+            playApplauseSound();
+
+            // Modalı göster
+            setTimeout(() => {
+                showWinnerModal(winner);
+            }, 1000);
+
+        }, 4000); // 4 saniye dönüş süresi
+    }, 200); // 200ms sonra ikinci dönüşü başlat
+}
+        
+        // Kazanan modalını göster
+        function showWinnerModal(winner) {
+            const modal = document.querySelector('.modal.reward-modal');
+            const winnerText = document.querySelector('.winner-text');
+            
+            // Önceki quiz sonuç mesajlarını temizle
+            const resultDiv = document.querySelector('.quiz-result-message');
+            if (resultDiv) {
+                resultDiv.style.display = 'none';
+                resultDiv.textContent = '';
+                resultDiv.classList.remove('success', 'error');
+            }
+            
+            winnerText.textContent = `"${winner}" kelimesini seçtiniz!`;
+            setupQuiz(winner);
+            
+            modal.style.visibility = "visible";
+            modal.style.opacity = "1";
+        }
+        
+        /// Quiz modalını hazırla
+// Quiz modalında doğru cevap için
+function setupQuiz(selectedWord) {
+    const antonymPairs = getAntonymPairs();
+    const correctAnswer = antonymPairs[selectedWord] || "";
+
+    if (!correctAnswer) {
+        return;
+    }
+
+    const allWords = Object.keys(antonymPairs);
+    let wrongAnswer = "";
+    do {
+        wrongAnswer = allWords[Math.floor(Math.random() * allWords.length)];
+    } while (wrongAnswer === correctAnswer || wrongAnswer === selectedWord);
+
+    const options = [correctAnswer, wrongAnswer];
+    const shuffled = options.sort(() => Math.random() - 0.5);
+
+    // Modal mesajını güncelle
+    const quizTitle = document.querySelector(".quiz-options h3");
+    if (quizTitle) {
+        quizTitle.textContent = `"${selectedWord}" kelimesinin zıt anlamlısı hangisidir?`;
+    }
+
+    const optionButtons = document.querySelectorAll(".option-button");
+    if (optionButtons.length >= 2) {
+        optionButtons[0].textContent = shuffled[0];
+        optionButtons[1].textContent = shuffled[1];
+
+        optionButtons.forEach(function(button) {
+            button.onclick = function() {
+                if (this.textContent === correctAnswer) {
+                    showResultMessage("Doğru! Kelime çarktan çıkarıldı.", "success");
+                    setTimeout(() => {
+                        removeWordFromWheel(selectedWord);
+                        hideModal();
+                    }, 2000);
+                } else {
+                    showResultMessage("Yanlış! Tekrar deneyin.", "error");
+                }
+            };
+        });
+    }
+}
+        
+        // Sonuç mesajını modal içerisinde göster
+function showResultMessage(message, type) {
+    const resultDiv = document.querySelector('.quiz-result-message');
+    
+    if (resultDiv) {
+        // Önceki stil ve sınıfı temizle
+        resultDiv.classList.remove('success', 'error');
+        resultDiv.style.backgroundColor = '';
+        resultDiv.textContent = '';
+
+        // Yeni mesajı ve stilini ayarla
+        resultDiv.textContent = message;
+        resultDiv.classList.add(type);
+        resultDiv.style.display = 'block';
+
+        // Yanlış cevap mesajını 1 saniye sonra gizle ve modalı kapat
+        if (type === 'error') {
+            setTimeout(() => {
+                hideModal(); // Modalı tamamen kapat
+            }, 1000); // 1 saniye sonra modal kapansın
+        }
+    }
+}  // Modalı gizle
+        function hideModal() {
+            const modal = document.querySelector('.modal.reward-modal');
+            modal.style.visibility = "hidden";
+            modal.style.opacity = "0";
+            
+            // Sonuç mesajını tamamen temizle
+            const resultDiv = document.querySelector('.quiz-result-message');
+            if (resultDiv) {
+                resultDiv.style.display = 'none';
+                resultDiv.textContent = '';
+                resultDiv.classList.remove('success', 'error'); // CSS class'larını da kaldır
+                resultDiv.style.backgroundColor = ''; // Arka plan rengini sıfırla
+            }
+        }
+        
+        // Kelimeyi çarktan çıkar (düzeltildi)
+        function removeWordFromWheel(word) {
+            const textarea = document.querySelector(".itemList");
+            if (textarea) {
+                let items = textarea.value.split('\n').filter(item => item.trim() !== '');
+                items = items.filter(item => {
+                    const mainWord = item.includes(':') ? item.split(':')[0].trim() : item.trim();
+                    return mainWord !== word;
+                });
+                textarea.value = items.join('\n');
+                
+                // Çarkı tamamen yeniden çiz
+                wheelCanvas = null; // Canvas'ı sıfırla
+                drawWheel();
+                
+                // Eğer hiç kelime kalmadıysa bilgi ver
+                if (items.length === 0) {
+                    alert('Tebrikler! Tüm kelimeleri tamamladınız!');
+                }
+            }
+        }
+        
+        // DOM yüklendiğinde başlat
+        document.addEventListener('DOMContentLoaded', function() {
+            // Çarkı çiz
+            setTimeout(() => {
+                drawWheel();
+                
+                // Spin buton event'i
+                const spinButton = document.querySelector('.spin-button');
+                spinButton.addEventListener('click', spinWheel);
+                
+                // Textarea değişikliklerini dinle
+                const textarea = document.querySelector('.itemList');
+                textarea.addEventListener('input', function() {
+                    wheelCanvas = null; // Canvas'ı sıfırla
+                    drawWheel();
+                });
+                
+                // Modal kapatma butonları
+                const closeButtons = document.querySelectorAll('.modal .close');
+                closeButtons.forEach(button => {
+                    button.addEventListener('click', hideModal);
+                });
+                
+                // Tekrar çevir butonu
+                const retryButton = document.querySelector('.retry-spin');
+                if (retryButton) {
+                    retryButton.addEventListener('click', function() {
+                        hideModal();
+                        setTimeout(() => spinWheel(), 100);
+                    });
+                }
+            }, 100);
+        });
+    </script>
+<style>
+.spinner-block .controls {
+    display: none !important;
+    visibility: hidden !important;
+    position: absolute;
+    width: 0;
+    height: 0;
+    overflow: hidden;
+}
+
+.quiz-result-message {
+    display: block !important; /* Sonuç mesajını görünür yap */
+    padding: 15px;
+    margin-top: 10px;
+    border-radius: 8px;
+    text-align: center;
+    font-weight: bold;
+    font-size: 16px;
+}
+
+/* Quiz result message styles */
+.quiz-result-message.success {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.quiz-result-message.error {
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow: hidden;
+        }
+        .spinner-block {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #f0f0f0;
+        }
+        .wheelContainer {
+            max-height: 90vh;
+            width: calc(100% - 20px);
+            max-width: 90vh;
+            margin: 0 auto;
+        }
+        
+        .modal {
+            z-index: 1000;
+        }
+        
+        .needle {
+            z-index: 7 !important;
+        }
+        
+        .wheel {
+            transition: none; /* Başlangıç geçişini kaldır */
+        }
+</style>
+
+<!-- wp setting-css-js-görünümümü yükle-->
+<script>
+window._wpemojiSettings = {"baseUrl":"https:\/\/s.w.org\/images\/core\/emoji\/15.0.3\/72x72\/","ext":".png","svgUrl":"https:\/\/s.w.org\/images\/core\/emoji\/15.0.3\/svg\/","svgExt":".svg","source":{"concatemoji":"https:\/\/namesonwheel.com\/wp-includes\/js\/wp-emoji-release.min.js?ver=6.7.2"}};
+!function(i,n){var o,s,e;function c(e){try{var t={supportTests:e,timestamp:(new Date).valueOf()};sessionStorage.setItem(o,JSON.stringify(t))}catch(e){}}function p(e,t,n){e.clearRect(0,0,e.canvas.width,e.canvas.height),e.fillText(t,0,0);var t=new Uint32Array(e.getImageData(0,0,e.canvas.width,e.canvas.height).data),r=(e.clearRect(0,0,e.canvas.width,e.canvas.height),e.fillText(n,0,0),new Uint32Array(e.getImageData(0,0,e.canvas.width,e.canvas.height).data));return t.every(function(e,t){return e===r[t]})}function u(e,t,n){switch(t){case"flag":return n(e,"\ud83c\udff3\ufe0f\u200d\u26a7\ufe0f","\ud83c\udff3\ufe0f\u200b\u26a7\ufe0f")?!1:!n(e,"\ud83c\uddfa\ud83c\uddf3","\ud83c\uddfa\u200b\ud83c\uddf3")&&!n(e,"\ud83c\udff4\udb40\udc67\udb40\udc62\udb40\udc65\udb40\udc6e\udb40\udc67\udb40\udc7f","\ud83c\udff4\u200b\udb40\udc67\u200b\udb40\udc62\u200b\udb40\udc65\u200b\udb40\udc6e\u200b\udb40\udc67\u200b\udb40\udc7f");case"emoji":return!n(e,"\ud83d\udc26\u200d\u2b1b","\ud83d\udc26\u200b\u2b1b")}return!1}function f(e,t,n){var r="undefined"!=typeof WorkerGlobalScope&&self instanceof WorkerGlobalScope?new OffscreenCanvas(300,150):i.createElement("canvas"),a=r.getContext("2d",{willReadFrequently:!0}),o=(a.textBaseline="top",a.font="600 32px Arial",{});return e.forEach(function(e){o[e]=t(a,e,n)}),o}function t(e){var t=i.createElement("script");t.src=e,t.defer=!0,i.head.appendChild(t)}"undefined"!=typeof Promise&&(o="wpEmojiSettingsSupports",s=["flag","emoji"],n.supports={everything:!0,everythingExceptFlag:!0},e=new Promise(function(e){i.addEventListener("DOMContentLoaded",e,{once:!0})}),new Promise(function(t){var n=function(){try{var e=JSON.parse(sessionStorage.getItem(o));if("object"==typeof e&&"number"==typeof e.timestamp&&(new Date).valueOf()<e.timestamp+604800&&"object"==typeof e.supportTests)return e.supportTests}catch(e){}return null}();if(!n){if("undefined"!=typeof Worker&&"undefined"!=typeof OffscreenCanvas&&"undefined"!=typeof URL&&URL.createObjectURL&&"undefined"!=typeof Blob)try{var e="postMessage("+f.toString()+"("+[JSON.stringify(s),u.toString(),p.toString()].join(",")+"));",r=new Blob([e],{type:"text/javascript"}),a=new Worker(URL.createObjectURL(r),{name:"wpTestEmojiSupports"});return void(a.onmessage=function(e){c(n=e.data),a.terminate(),t(n)})}catch(e){}c(n=f(s,u,p))}t(n)}).then(function(e){for(var t in e)n.supports[t]=e[t],n.supports.everything=n.supports.everything&&n.supports[t],"flag"!==t&&(n.supports.everythingExceptFlag=n.supports.everythingExceptFlag&&n.supports[t]);n.supports.everythingExceptFlag=n.supports.everythingExceptFlag&&!n.supports.flag,n.DOMReady=!1,n.readyCallback=function(){n.DOMReady=!0}}).then(function(){return e}).then(function(){var e;n.supports.everything||(n.readyCallback(),(e=n.source||{}).concatemoji?t(e.concatemoji):e.wpemoji&&e.twemoji&&(t(e.twemoji),t(e.wpemoji)))})}((window,document),window._wpemojiSettings);
+</script>
+
+<style>
+@font-face{font-family:Gilbert;font-weight:700;src:url(/wp-content/plugins/spinner/build/fonts/gilbert-color.02d3d364.otf)}@keyframes rotate360{0%{transform:rotate(0deg)}to{transform:rotate(1turn)}}.wp-block-spinner-block-spinner{font-family:Gilbert,sans-serif;font-size:42px;margin:0;max-width:100%!important;overflow:hidden}@media only screen and (max-width:650px){.wp-block-spinner-block-spinner{margin:0 5px}}.wheelContainer{align-items:center;aspect-ratio:1/1;box-sizing:border-box;display:flex;justify-content:center;margin:auto;max-width:calc(85vh - 10px);overflow:hidden;padding:0;position:relative;width:100%}@media only screen and (max-width:650px){.wheelContainer{height:auto;min-width:unset}}.spin-button{align-items:center;aspect-ratio:1/1;background-color:#fff;border:3px solid #fff;border-radius:50%;box-shadow:5px 5px 15px rgba(0,0,0,.4);color:#000;cursor:pointer;display:flex;font-size:20px;font-weight:700;height:15%;justify-content:center;left:50%;padding:0;position:absolute;text-transform:uppercase;top:50%;transform:translate(-50%,-50%);width:15%;z-index:3}.spin-button img{display:none;height:55%;width:55%}@media only screen and (max-width:650px){.spin-button{font-size:14px}.spin-button span{display:none}.spin-button img{display:block}}.spin-button:focus{outline:none}
+.needle{background-color:#fff;
+clip-path:polygon(50% 0,0 100%,100% 100%);
+filter:drop-shadow(5px 5px 15px rgba(0,0,0,.4));
+height:8%;left:50%;position:absolute;top:36%;transform:translate(-50%,0);width:6%;z-index:7}.wheel{backface-visibility:hidden;-webkit-backface-visibility:hidden;background-repeat:no-repeat;background-size:cover;border-radius:50%;box-shadow:0 0 10px rgba(0,0,0,.3);clip-path:circle(50% at 50% 50%);-webkit-clip-path:circle(50% at 50% 50%);height:100%;overflow:visible;transform:translateZ(0);width:100%}.wheel.customBg .slice-container .slice{background-color:transparent!important}.wheel.customBg .slice-container .content{color:#fff;-webkit-text-stroke-width:2px;-webkit-text-stroke-color:#000}.wheel .slice-container{border-radius:50%;height:100%;overflow:hidden;position:absolute;width:100%}.wheel .slice-container .border{background-color:#fff;height:3px;position:absolute;right:0;top:50%;transform-origin:left;width:100%;width:50%;z-index:2}.wheel .slice{border-radius:50%;height:100%;position:absolute;width:100%}.wheel .content-box{height:1px;left:50%;position:absolute;top:50%;transform-origin:center left;width:50%;z-index:9}.wheel .content{color:#000;font-size:36px;line-height:1;overflow:hidden;padding-left:4.5rem;padding-right:1.5rem;text-align:end;text-overflow:ellipsis;transform:translateY(-50%);white-space:nowrap}@media only screen and (max-width:650px){.wheel .content{font-size:20px}}.spinner-block{display:flex;flex-wrap:wrap;padding:64px 0}@media only screen and (max-width:650px){.spinner-block{padding:0}}.spinner-block button{letter-spacing:1px}@media only screen and (max-width:1400px){.spinner-block .picker_wrapper{left:50%!important;position:fixed!important;top:50%!important;transform:translate(-50%,-50%)!important}}.spinner-block .picker_wrapper .picker_arrow{display:none!important}.spinner-block .btn-primary{background-color:#409bd0;border:2px solid #1f4d68;border-radius:8px;color:#fff;cursor:pointer;font-family:Gilbert;font-size:15px;padding:2px 10px;transition:all .1s ease-out}.spinner-block .btn-primary:hover{background-color:rgba(0,0,0,.1)!important}.spinner-block .btn-secondary{background-color:transparent;border:none;border-radius:8px;color:#000;cursor:pointer;font-family:Gilbert;font-size:18px;padding:4px 20px;transition:all .1s ease-out}.spinner-block .btn-secondary:hover{background-color:rgba(0,0,0,.1)!important}.spinner-block .confetti{animation:fall 10s linear;border-radius:50%;height:10px;position:fixed;top:-10px;transform:rotate(45deg);width:10px;z-index:5}@keyframes fall{0%{transform:translate(0)}to{transform:translateY(100vh)}}.spinner-block .controls{align-self:stretch;border-radius:16px;display:flex;min-height:400px;position:relative}@media only screen and (max-width:1400px){.spinner-block .controls{min-height:0;width:100%}}.spinner-block .controls button.visibility{background:transparent;border:none;cursor:pointer;height:45px;position:absolute;right:24px;top:8px;width:95px;z-index:2}.spinner-block .controls button.visibility label{bottom:50%;color:#000;font-family:Gilbert;font-size:18px;left:0;position:absolute;transform:translateY(50%);visibility:hidden}.spinner-block .controls button.visibility label:first-of-type{visibility:visible}.spinner-block .controls button.visibility img{background-size:contain;border:3px solid #000;border-radius:50%;box-sizing:border-box;height:100%;padding:5px;position:absolute;right:0;top:0;visibility:hidden;width:auto}.spinner-block .controls button.visibility img:first-of-type,.spinner-block .controls button.visibility.active img,.spinner-block .controls button.visibility.active label{visibility:visible}.spinner-block .controls button.visibility.active img:first-of-type,.spinner-block .controls button.visibility.active label:first-of-type{visibility:hidden}.spinner-block .controls .hideable{display:flex;gap:16px;justify-content:space-around;padding:24px;width:100%}@media only screen and (max-width:1400px){.spinner-block .controls .hideable{flex-wrap:wrap;margin:24px 0;overflow:hidden;padding:0 24px}}@media only screen and (max-width:650px){.spinner-block .controls .hideable{flex-direction:column;flex-wrap:nowrap}}.spinner-block .controls .switches{background-color:rgba(0,0,0,.15);border-radius:16px;box-shadow:5px 5px 10px rgba(0,0,0,.2);box-sizing:border-box;display:flex;flex-direction:column;height:-moz-fit-content;height:fit-content;margin-top:37px;min-width:200px;padding:8px}.spinner-block .controls .switches .ai-open{margin-top:8px}@media only screen and (max-width:1400px){.spinner-block .controls .switches{margin-bottom:16px}}@media only screen and (max-width:650px){.spinner-block .controls .switches{width:100%}}.spinner-block .controls .textarea-tabs .wheel-tabs{display:flex;overflow:hidden}.spinner-block .controls .textarea-tabs .wheel-tabs button{background-color:rgba(0,0,0,.3);border:0;border-radius:16px 16px 0 0;cursor:pointer;font-family:Gilbert;font-size:16px;padding:8px}.spinner-block .controls .textarea-tabs .wheel-tabs button.active{background-color:rgba(0,0,0,.15);cursor:default}.spinner-block .controls .textarea-tabs .tabcontent{background-color:rgba(0,0,0,.15);border-radius:0 16px 16px 16px;box-shadow:5px 8px 10px rgba(0,0,0,.2);font-size:24px;width:250px}.spinner-block .controls .textarea-tabs .tabcontent .tab{display:none;padding:8px}.spinner-block .controls .textarea-tabs .tabcontent .tab.active{display:block}@media only screen and (max-width:650px){.spinner-block .controls .textarea-tabs .tabcontent{width:100%}}.spinner-block .controls .textarea-tabs .tabcontent .ai-open{width:100%}.spinner-block .controls .textarea-tabs .tabcontent .buttonbox{display:flex;justify-content:end;width:100%}.spinner-block .controls .textarea-tabs .tabcontent .buttonbox button{background-color:#fff;border:0;border-radius:8px;color:#000;cursor:pointer;font-family:Gilbert,sans-serif;font-size:20px;margin-left:16px;padding:2px 16px;transition:all .1s ease-out}.spinner-block .controls .textarea-tabs .tabcontent .buttonbox button:hover{background-color:rgba(0,0,0,.15)}.spinner-block .controls .textarea-tabs .tabcontent textarea{background-color:transparent;border:0;box-sizing:border-box;color:inherit;font-family:Gilbert,sans-serif;font-size:24px;resize:none;width:100%}.spinner-block .controls .textarea-tabs .tabcontent textarea:focus{outline:none}.spinner-block .controls .textarea-tabs .tabcontent .results{padding:8px}.spinner-block .controls .textarea-tabs .tabcontent .results div{font-size:24px;margin:0;min-height:2ch}.spinner-block .controls .textarea-tabs .tabcontent .results div .item{display:flex;justify-content:space-between}.spinner-block .controls .textarea-tabs .tabcontent .results div .num{margin-right:8px}.spinner-block .controls .sliders{display:flex;margin-bottom:8px}.spinner-block .controls .sliders .slider-container{align-items:center;box-sizing:border-box;display:flex;flex-direction:column;height:auto;padding:0 16px;position:relative;width:100%}.spinner-block .controls .sliders .slider-container p{font-size:16px;margin:16px 0}.spinner-block .controls .sliders .slider-container span{display:block;font-size:20px;text-align:center;width:100%}.spinner-block .controls .sliders .slider-border{height:200px;margin-bottom:8px}.spinner-block .controls .sliders .slider{-webkit-appearance:none;-moz-appearance:none;appearance:none;background:#fff;border-radius:16px;height:20px;outline:none;position:absolute;touch-action:none;transform:rotate(-90deg) translate(-100%,-50%);transform-origin:left top;width:200px}.spinner-block .controls .sliders .slider::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;background:#409bd0;border-radius:16px;cursor:pointer;height:20px;width:25px}.spinner-block .switch input{opacity:0;position:absolute}.spinner-block .switch{background:#000;border-radius:1em;display:inline-block;font-size:20px;height:1em;margin-right:16px;transition:all .3s;width:2em}.spinner-block .switch:has(input:checked){background:#409bd0}.spinner-block .switch div{background:#fff;border-radius:1em;box-shadow:0 .1em .3em rgba(0,0,0,.3);height:1em;transition:all .3s;width:1em}.spinner-block .switch input:checked+div{transform:translate3d(100%,0,0)}.spinner-block .option{align-items:center;cursor:pointer;display:flex}.spinner-block .option:not(:last-child){margin-bottom:16px}.spinner-block .option:has(input:disabled){cursor:default;opacity:.5}.spinner-block .option span{font-size:16px}.spinner-block .modalBack{background-color:transparent;display:none;height:100%;left:0;position:fixed;top:0;width:100%;z-index:8}.spinner-block .modal{background-color:#fff;border-radius:6px;box-shadow:0 5px 10px rgba(0,0,0,.2);box-sizing:border-box;display:flex;flex-direction:column;left:50%;max-width:calc(100% - 10px);overflow:hidden;position:fixed;top:50%;transform:translate(-50%,-50%);visibility:hidden;width:500px;z-index:9}@media only screen and (max-width:650px){.spinner-block .modal{width:calc(100% - 10px)}}.spinner-block .modal .ribbon{background-color:#409bd0;box-sizing:border-box;display:flex;height:-moz-fit-content;height:fit-content;padding:16px;width:100%}.spinner-block .modal .winner-text{font-size:36px;margin:0}.spinner-block .modal .buttonbox{display:flex;gap:16px;justify-content:flex-end;margin-top:auto}.spinner-block .modal .modal-body{display:flex;flex-direction:column;height:100%;padding:16px}.spinner-block .modal .buttonbox{margin-top:16px}.spinner-block .modal .ribbon button.close{background:#ececec;border:0;border-radius:20px;cursor:pointer;height:40px;left:auto;margin-left:auto;position:relative;transition:.2s ease-in-out;width:40px}.spinner-block .modal .ribbon button.close .line{background:#000;border-radius:2px;height:4px;left:50%;position:absolute;top:50%;transform:translate(-50%,-50%) rotate(45deg);transform-origin:center;width:20px}.spinner-block .modal .ribbon button.close .line:nth-child(2){transform:translate(-50%,-50%) rotate(-45deg)}.spinner-block .modal .ribbon button.close:hover{background-color:#c8c8c8}.spinner-block .modal.reward-modal{text-align:center}.spinner-block .modal.reward-modal .textbox{margin:16px auto}.spinner-block .modal.reward-modal .reward{margin-bottom:24px;text-decoration:underline}.spinner-block .modal.config-modal{overflow:visible;padding:16px;width:650px}.spinner-block .modal.config-modal .modal-body{background-color:#eee;border-radius:16px}.spinner-block .modal.config-modal .configs{font-size:20px;overflow:visible}.spinner-block .modal.config-modal .configs .winner-text-input{display:flex;flex-direction:column;margin-bottom:32px;width:100%}.spinner-block .modal.config-modal .configs .winner-text-input input{background-color:#fff;border:0;border-radius:16px;flex-grow:1;font-family:Gilbert,sans-serif;font-size:16px;margin-left:8px;padding:4px 8px}.spinner-block .modal.config-modal .configs .background-input{align-items:center;display:flex;flex-wrap:wrap}.spinner-block .modal.config-modal .configs .background-input p{width:100%}.spinner-block .modal.config-modal .configs .background-input .input{margin-right:16px;position:relative}.spinner-block .modal.config-modal .configs .background-input .input label{background-color:#409bd0;border:2px solid #1f4d68;border-radius:16px;color:#fff;letter-spacing:2px;padding:4px 8px;transition:all .1s ease-out}.spinner-block .modal.config-modal .configs .background-input .input:hover label{background-color:rgba(0,0,0,.1)}.spinner-block .modal.config-modal .configs .background-input .input input{cursor:pointer;height:100%;left:0;opacity:0;position:absolute;top:0;width:100%}.spinner-block .modal.config-modal .configs .background-input .preview{background-color:#fff;background-size:contain;border:2px solid #1f4d68;border-radius:50%;height:100px;margin-right:16px;overflow:hidden;width:100px}.spinner-block .modal.config-modal .configs .colors{display:flex;flex-wrap:wrap;justify-content:space-between}.spinner-block .modal.config-modal .configs .colors p{width:100%}.spinner-block .modal.config-modal .configs .colors .color{width:15%}.spinner-block .modal.config-modal .configs .colors .color button{border:0;border-radius:4px;cursor:pointer;height:40px;width:100%}.spinner-block .modal.ai-modal{padding:16px}.spinner-block .modal.ai-modal .doneMask,.spinner-block .modal.ai-modal .loadingMask{align-items:center;background-color:#eee;display:none;height:100%;justify-content:center;left:0;position:absolute;top:0;width:100%;z-index:10}.spinner-block .modal.ai-modal .doneMask.active,.spinner-block .modal.ai-modal .loadingMask.active{display:flex}.spinner-block .modal.ai-modal .modal-body{background-color:#eee;border-radius:16px;font-size:20px}.spinner-block .modal.ai-modal .modal-body input{background-color:#fff;border:0;border-radius:16px;flex-grow:1;font-family:Gilbert,sans-serif;font-size:16px;margin-left:8px;padding:4px 8px}.spinner-block .modal.ai-modal button:disabled{cursor:default;opacity:.5}
+</style>
+
+</head>
+<body>
+
+<div class="wp-block-spinner-block-spinner">
+	<div class="spinner-block">
+		<div class="confetti-container"></div>
+		<audio class="spinnerSound">
+						<source src="" type="audio/mpeg">
+
+			Tarayıcınız ses öğesini desteklemiyor.
+		</audio>
+		<audio class="applauseSound">
+			<source src="data:audio/mpeg;base64," type="audio/mpeg">
+			Tarayıcınız ses öğesini desteklemiyor.
+		</audio>
+		<div class="wheelContainer">
+			<div class="wheel" >
+			</div>
+			<button class="spin-button">
+				<span>çarkı çevİr</span>
+				<img decoding="async" src="wp-content/plugins/spinner/assets/click-tap.svg" alt="">
+			</button>
+			<div class="needle"></div>
+		</div>
+		<div class="controls">
+			<button class="visibility">
+				<label>Gizle</label>
+				<img src="data:image/svg+xml;base64," alt="">
+				<label>ayar</label>
+				<img src="data:image/svg+xml;base64," alt="">
+			</button>
+			<div class="hideable">
+				<div class="textarea-tabs">
+					<div class="wheel-tabs">
+						<button data-tab="entries" class="entries active">Girişler</button>
+						<button data-tab="results" class="results">Sonuç</button>
+					</div>
+					<div class="tabcontent">
+						<div class="tab entries active">
+							<div class="buttonbox">
+								<button class="shuffle-entries">Karıştır</button>
+								<button class="clear-entries">Temizle</button>
+							</div>
+							<textarea class="itemList" rows="10">doğru:yanlış
+acı:tatlı
+açık:kapalı
+ince:kalın
+ıslak:kuru
+cömert:cimri
+ıssız:kalabalık
+dost:düşman
+alçak:yüksek
+az:çok
+büyük:küçük
+geniş:dar
+uzun:kısa
+soğuk:sıcak
+hızlı:yavaş</textarea>
+						</div>
+						<div class="tab results">
+							<div class="buttonbox">
+								<button class="clear-results">Temizle</button>
+							</div>
+							<div class="list">
+								Henüz Sonuç Yok
+							</div>
+						</div>
+					</div>
+				</div>
+				<div class="switches">
+					<div class="options">
+						<div class="option oDuplicates">
+							<label class="switch"><input type="checkbox"  />
+								<div></div>
+							</label>
+							<span>Yinelenenleri Kaldır</span>
+						</div>
+						<div class="option oSlow">
+							<label class="switch"><input type="checkbox" checked  />
+								<div></div>
+							</label>
+							<span>Yavaş Dönüş</span>
+						</div>
+						<div class="option oApplause">
+							<label class="switch">
+								<input type="checkbox" checked/>
+								<div></div>
+							</label>
+							<span>Alkış Effect'i</span>
+						</div>
+						<div class="option oConfetti">
+							<label class="switch">
+								<input type="checkbox" checked/>
+								<div></div>
+							</label>
+							<span>Konfeti</span>
+						</div>
+					</div>
+					<div class="sliders">
+						<div class="slider-container oTime">
+							<p>Dönüş Süresi</p>
+							<div class="slider-border">
+								<input type="range" value="4" class="slider" min="1" max="60" step="1">
+							</div>
+							<span class="time">4 sn</span>
+						</div>
+						<div class="slider-container oVol">
+							<p>Ses</p>
+							<div class="slider-border">
+								<input type="range" value="0.10" class="slider" min="0" max="1" step="0.05">
+							</div>
+							<span class="volume">10%</span>
+						</div>
+					</div>
+					<button class="config-open btn-primary">
+						Daha Fazla Ayar
+					</button>
+				</div>
+			</div>
+		</div>
+		<span class="modalBack"></span>
+		<div class="modal reward-modal">
+			<span class="ribbon">
+				<button class="close">
+					<div class="arrow">
+						<div class="line"></div>
+						<div class="line"></div>
+					</div>
+				</button>
+			</span>
+			<div class="modal-body">
+				<div class="textbox">
+					<p class="winner-text"></p>
+					<div class="reward"></div>
+				</div>
+				<div class="quiz-options" style="display: flex; flex-direction: column; gap: 10px; margin: 20px 0;">
+					<h3 style="margin-bottom: 15px; color: #333;">Bu kelimenin zıt anlamlısı hangisidir?</h3>
+					<button class="option-button btn-primary" style="padding: 15px; font-size: 18px;"></button>
+					<button class="option-button btn-primary" style="padding: 15px; font-size: 18px;"></button>
+					<!-- Sonuç mesajı alanı -->
+					<div class="quiz-result-message" style="display: none; padding: 15px; margin-top: 10px; border-radius: 8px; text-align: center; font-weight: bold; font-size: 16px;"></div>
+				</div>
+				<div class="buttonbox">
+				
+				</div>
+			</div>
+		</div>
+		<div class="modal config-modal">
+			<div class="modal-body">
+				<div class="configs">
+					<div class="winner-text-input">
+						<label>Kazanan MESAJI</label>
+						<input type="text" value="">
+					</div>
+					<div class="background-input">
+						<p>Çark Arkaplan Resmi</p>
+						<div class="preview" style=""></div>
+						<div class="input">
+							<label>Resim Yükle</label>
+							<input type="file" accept="image/*" placeholder="Upload Image">
+						</div>
+						<div class="option oBackground">
+							<label class="switch"><input type="checkbox" disabled  />
+								<div></div>
+							</label>
+							<span>Arkaplan Resmi Yap</span>
+						</div>
+					</div>
+					<div class="colors">
+						<p>Çark Renkleri</p>
+						<div class="color">
+							<button class="picker"> </button>
+						</div>
+						<div class="color">
+							<button class="picker"> </button>
+						</div>
+						<div class="color">
+							<button class="picker"> </button>
+						</div>
+						<div class="color">
+							<button class="picker"> </button>
+						</div>
+						<div class="color">
+							<button class="picker"> </button>
+						</div>
+						<div class="color">
+							<button class="picker"> </button>
+						</div>
+					</div>
+				</div>
+			</div>
+			<div class="buttonbox">
+				<button class="btn-secondary close">Kapat</button>
+			</div>
+		</div>
+				
+		</div>
+	</div>
+
+</body>
+</html>
