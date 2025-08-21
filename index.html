@@ -523,14 +523,32 @@ function showResultMessage(message, type) {
         }
         
         // Oyunu yeniden başlat
-        function restartGame() {
-            const textarea = document.querySelector('.itemList');
-            if (textarea) {
-                textarea.value = 'doğru:yanlış\nacı:tatlı\nhızlı:yavaş';
-                drawWheel(); // Çarkı yeniden çiz
-            }
-            hideRestartModal();
-        }
+      function restartGame() {
+    // Tüm kelimeleri saklayan orijinal listeyi kullan
+    const defaultWords = `doğru:yanlış
+    acı:tatlı
+    açık:kapalı
+    ince:kalın
+    ıslak:kuru
+    cömert:cimri
+    ıssız:kalabalık
+    dost:düşman
+    alçak:yüksek
+    az:çok
+    büyük:küçük
+    geniş:dar
+    uzun:kısa
+    soğuk:sıcak
+    hızlı:yavaş`;
+
+    const textarea = document.querySelector('.itemList');
+    if (textarea) {
+        textarea.value = defaultWords;  // Kelimeleri yeniden yükle
+    }
+    
+    drawWheel(); // Çarkı yeniden çiz
+    hideRestartModal(); // Yeniden başlatma modalını gizle
+}
         
         // Kelimeyi çarktan çıkar (düzeltildi)
         function removeWordFromWheel(word) {
